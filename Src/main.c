@@ -77,33 +77,61 @@ void StartBlink(void *argument);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 typedef struct {
-	uint8_t cycleInitialized;
-	uint32_t onRise, onFall, diff;
-} PWM_SENSOR;
+	// Stuff for frequency detection
+	uint8_t initialised, count;
+	float frequency, period;
 
-PWM_SENSOR pwm;
+	// Stuff for actual sensor reading
+	uint8_t cycleInitialised;
+	uint32_t onRise, onFall, diff;
+	float angle;
+} AS5048_PWM_SENSOR;
+
+AS5048_PWM_SENSOR pwm;
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 
-	// Check if interuption came from channel 1
-	if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){
-		// Depending on if the cycle has been initialized or not, do something different
-		if(!pwm.cycleInitialized){
-			// If it's the begining of the PWM cycle, get time it occurs and change next interupt to falling edge (starts with rising
-			pwm.onRise = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
-			pwm.cycleInitialized = 1;
-		}else{
-			// If its on the end of the cycle, get time in which it ocured and save on variable
-			pwm.onFall = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-			// reset timer
-			__HAL_TIM_SET_COUNTER(htim, 0);
-			// Calculad time difference
-			if(pwm.onFall > pwm.onRise) pwm.diff = pwm.onFall - pwm.onRise;
-			// Set next interupt to be on rising edge
-			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-			pwm.cycleInitialized = 0;
+	// Check if interruption came from tim2 on channel 1
+	if(htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){
+		if(pwm.initialised){
+			// Sensor reading
+			if(!pwm.cycleInitialised){
+				// If it's the beginning of the PWM cycle, get time it occurs and change next interrupt to falling edge (starts with rising
+				pwm.onRise = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+				__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
+				pwm.cycleInitialised = 1;
+			}else{
+				// If its on the end of the cycle, get time in which it occurred and save on variable
+				pwm.onFall = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+				// reset timer
+				__HAL_TIM_SET_COUNTER(htim, 0);
+				// Calculate time difference
+				if(pwm.onFall > pwm.onRise) pwm.diff = pwm.onFall - pwm.onRise;
+				// Set next interrupt to be on rising edge
+				__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+				pwm.cycleInitialised = 0;
 
+			}
+		}
+		else { // Initialise sensor
+			// After a sensor is connected, discard first interrupt (since we did not know the state of the timer) and read a few
+			// more interrupt times, take a mean of that and assert frequency
+			if(pwm.count == 0){
+				// Reset counter
+				__HAL_TIM_SET_COUNTER(htim, 0);
+				pwm.period = 0;
+			}
+			else if(pwm.count <= 100){
+				pwm.period += (float) HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1)/1000000; // each clock count is equivalent to 1 us
+			}
+			else {
+				// mean of periods
+				pwm.period /= (float)pwm.count;
+				pwm.frequency = 1.0 / pwm.period;
+				pwm.initialised++;
+				__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+			}
+			pwm.count++;
 		}
 	}
 }
@@ -271,7 +299,7 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
   sConfigIC.ICFilter = 0;
@@ -326,7 +354,7 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    osDelay(1000);
   }
   /* USER CODE END 5 */ 
 }
@@ -344,7 +372,7 @@ void StartBlink(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1000);
+    osDelay(100);
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8); //Toggle LED
   }
   /* USER CODE END StartBlink */
@@ -361,7 +389,6 @@ void StartBlink(void *argument)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
-
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM1) {
     HAL_IncTick();

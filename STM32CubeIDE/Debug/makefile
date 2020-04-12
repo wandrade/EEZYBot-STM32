@@ -26,24 +26,24 @@ endif
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-STM32CubeIDE.elf \
+EEZYBOT.elf \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-STM32CubeIDE.list \
+EEZYBOT.list \
 
 OBJCOPY_BIN += \
-STM32CubeIDE.bin \
+EEZYBOT.bin \
 
 
 # All Target
-all: STM32CubeIDE.elf secondary-outputs
+all: EEZYBOT.elf secondary-outputs
 
 # Tool invocations
-STM32CubeIDE.elf: $(OBJS) $(USER_OBJS) /home/werner/codes/EEZYBOT/STM32CubeIDE/STM32F767VITX_FLASH.ld
-	arm-none-eabi-gcc -o "STM32CubeIDE.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/home/werner/codes/EEZYBOT/STM32CubeIDE/STM32F767VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32CubeIDE.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+EEZYBOT.elf: $(OBJS) $(USER_OBJS) /home/werner/codes/EEZYBot-STM32/STM32CubeIDE/STM32F767VITX_FLASH.ld
+	arm-none-eabi-gcc -o "EEZYBOT.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/home/werner/codes/EEZYBot-STM32/STM32CubeIDE/STM32F767VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="EEZYBOT.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -52,13 +52,13 @@ default.size.stdout: $(EXECUTABLES)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-STM32CubeIDE.list: $(EXECUTABLES)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "STM32CubeIDE.list"
+EEZYBOT.list: $(EXECUTABLES)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "EEZYBOT.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
-STM32CubeIDE.bin: $(EXECUTABLES)
-	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "STM32CubeIDE.bin"
+EEZYBOT.bin: $(EXECUTABLES)
+	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "EEZYBOT.bin"
 	@echo 'Finished building: $@'
 	@echo ' '
 
