@@ -9,6 +9,7 @@ void AS5048_initialise_struct(AS5048_PWM_SENSOR *sensorStruct, TIM_HandleTypeDef
 	sensorStruct->initialised = 0;
 	sensorStruct->count = 0;
 	sensorStruct->initialised = 0;
+	sensorStruct->valid = 0;
 	sensorStruct->timer_frequency = tim_freq;
 }
 
@@ -27,7 +28,10 @@ void AS5048_pwm_timer_interrupt(AS5048_PWM_SENSOR *sensorStruct){
 				// reset timer
 				__HAL_TIM_SET_COUNTER(sensorStruct->htim, 0);
 				// Calculate time difference
-				if(sensorStruct->onFall > sensorStruct->onRise) sensorStruct->diff = sensorStruct->onFall - sensorStruct->onRise;
+				if(sensorStruct->onFall > sensorStruct->onRise){
+					sensorStruct->diff = sensorStruct->onFall - sensorStruct->onRise;
+					AS5048_pwm_to_rad(sensorStruct);
+				}
 				// Set next interrupt to be on rising edge
 				__HAL_TIM_SET_CAPTUREPOLARITY(sensorStruct->htim, sensorStruct->channel_id, TIM_INPUTCHANNELPOLARITY_RISING);
 				sensorStruct->cycleInitialised = 0;
@@ -50,8 +54,25 @@ void AS5048_pwm_timer_interrupt(AS5048_PWM_SENSOR *sensorStruct){
 				sensorStruct->period /= (float)sensorStruct->count;
 				sensorStruct->frequency = 1.0 / sensorStruct->period;
 				sensorStruct->initialised++;
-				__HAL_TIM_SET_CAPTUREPOLARITY(sensorStruct->htim, sensorStruct->channel_id, TIM_INPUTCHANNELPOLARITY_RISING);
 			}
 			sensorStruct->count++;
 		}
+}
+
+void AS5048_pwm_to_rad(AS5048_PWM_SENSOR* sensorStruct){
+	// Acording to datasheet: https://ams.com/documents/20143/36005/AS5048_DS000298_4-00.pdf
+	// Each PWM cycle has 4120 clock periods, lets count for how many of those clocks the PWM was up
+	sensorStruct->valid = 255;
+	if(sensorStruct->onFall < 110000){
+		sensorStruct->pwm_clocks =  roundf(sensorStruct->diff * 4120 / (sensorStruct->period * sensorStruct->timer_frequency));
+		// First 16bits of the duty cycles are reserved for error handling and init
+		if(sensorStruct->pwm_clocks >= 15) {
+			sensorStruct->angle = sensorStruct->prev_angle;
+			sensorStruct->angle = (sensorStruct->pwm_clocks - 15.0) * 2 * M_PI / 4096.0;
+			sensorStruct->valid = 0;
+		} else {
+			sensorStruct->valid = sensorStruct->pwm_clocks;
+		}
+	}
+
 }
