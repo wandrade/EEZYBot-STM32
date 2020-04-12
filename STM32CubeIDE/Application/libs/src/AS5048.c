@@ -1,6 +1,6 @@
 #include "AS5048.h"
 
-
+// Initialises struct PWM sensor struct
 void AS5048_initialise_struct(AS5048_PWM_SENSOR *sensorStruct, TIM_HandleTypeDef *htim, TIM_TypeDef *TIMER, HAL_TIM_ActiveChannel CHANNEL, uint32_t channel_id, uint32_t tim_freq){
 	sensorStruct->htim = htim;
 	sensorStruct->channel = CHANNEL;
@@ -13,6 +13,7 @@ void AS5048_initialise_struct(AS5048_PWM_SENSOR *sensorStruct, TIM_HandleTypeDef
 	sensorStruct->timer_frequency = tim_freq;
 }
 
+// Handles PWM cycles, should be called on HAL_TIM_IC_CaptureCallback
 void AS5048_pwm_timer_interrupt(AS5048_PWM_SENSOR *sensorStruct){
 
 		if(sensorStruct->initialised){
@@ -59,6 +60,7 @@ void AS5048_pwm_timer_interrupt(AS5048_PWM_SENSOR *sensorStruct){
 		}
 }
 
+// Interpret raw value and convert to radians when possible
 void AS5048_pwm_to_rad(AS5048_PWM_SENSOR* sensorStruct){
 	// Acording to datasheet: https://ams.com/documents/20143/36005/AS5048_DS000298_4-00.pdf
 	// Each PWM cycle has 4120 clock periods, lets count for how many of those clocks the PWM was up
