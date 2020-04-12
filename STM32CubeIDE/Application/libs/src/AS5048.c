@@ -1,7 +1,7 @@
 #include "AS5048.h"
 
 
-void AS5048_initialise_struct(AS5048_PWM_SENSOR *sensorStruct, TIM_HandleTypeDef *htim, TIM_TypeDef *TIMER, HAL_TIM_ActiveChannel CHANNEL, uint32_t channel_id){
+void AS5048_initialise_struct(AS5048_PWM_SENSOR *sensorStruct, TIM_HandleTypeDef *htim, TIM_TypeDef *TIMER, HAL_TIM_ActiveChannel CHANNEL, uint32_t channel_id, uint32_t tim_freq){
 	sensorStruct->htim = htim;
 	sensorStruct->channel = CHANNEL;
 	sensorStruct->channel_id = channel_id;
@@ -9,6 +9,7 @@ void AS5048_initialise_struct(AS5048_PWM_SENSOR *sensorStruct, TIM_HandleTypeDef
 	sensorStruct->initialised = 0;
 	sensorStruct->count = 0;
 	sensorStruct->initialised = 0;
+	sensorStruct->timer_frequency = tim_freq;
 }
 
 void AS5048_pwm_timer_interrupt(AS5048_PWM_SENSOR *sensorStruct){
@@ -42,7 +43,7 @@ void AS5048_pwm_timer_interrupt(AS5048_PWM_SENSOR *sensorStruct){
 				sensorStruct->period = 0;
 			}
 			else if(sensorStruct->count <= 100){
-				sensorStruct->period += (float) HAL_TIM_ReadCapturedValue(sensorStruct->htim, sensorStruct->channel_id)/1000000; // each clock count is equivalent to 1 us
+				sensorStruct->period += (float) HAL_TIM_ReadCapturedValue(sensorStruct->htim, sensorStruct->channel_id)/sensorStruct->timer_frequency; // each clock count is equivalent to 1 us
 			}
 			else {
 				// mean of periods

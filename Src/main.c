@@ -124,7 +124,7 @@ int main(void)
 
   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
   // Initialise sensor with timer
-  AS5048_initialise_struct(&position_sensors[0], &htim2, TIM2, HAL_TIM_ACTIVE_CHANNEL_1, TIM_CHANNEL_1);
+  AS5048_initialise_struct(&position_sensors[0], &htim2, TIM2, HAL_TIM_ACTIVE_CHANNEL_1, TIM_CHANNEL_1, 108000000);
 
   /* USER CODE END 2 */
 
@@ -241,9 +241,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 108;
+  htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 1000;
+  htim2.Init.Period = 216000;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_IC_Init(&htim2) != HAL_OK)

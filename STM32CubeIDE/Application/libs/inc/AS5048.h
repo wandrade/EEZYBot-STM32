@@ -10,6 +10,7 @@ typedef struct {
 	HAL_TIM_ActiveChannel channel;
 	TIM_TypeDef *instance;
 	uint32_t channel_id;
+	uint32_t timer_frequency;
 
 	// Stuff for frequency detection
 	uint8_t initialised, count;
@@ -21,7 +22,7 @@ typedef struct {
 	float angle, prev_angle;
 } AS5048_PWM_SENSOR;
 
-void AS5048_initialise_struct(AS5048_PWM_SENSOR*, TIM_HandleTypeDef*, TIM_TypeDef*, HAL_TIM_ActiveChannel, uint32_t);
+void AS5048_initialise_struct(AS5048_PWM_SENSOR*, TIM_HandleTypeDef*, TIM_TypeDef*, HAL_TIM_ActiveChannel, uint32_t, uint32_t);
 void AS5048_pwm_timer_interrupt(AS5048_PWM_SENSOR*);
 
 #endif
