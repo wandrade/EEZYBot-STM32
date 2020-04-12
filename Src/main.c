@@ -24,7 +24,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "AS5048.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -76,64 +76,16 @@ void StartBlink(void *argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-typedef struct {
-	// Stuff for frequency detection
-	uint8_t initialised, count;
-	float frequency, period;
 
-	// Stuff for actual sensor reading
-	uint8_t cycleInitialised;
-	uint32_t onRise, onFall, diff;
-	float angle;
-} AS5048_PWM_SENSOR;
 
-AS5048_PWM_SENSOR pwm;
+AS5048_PWM_SENSOR position_sensors[3];
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 
-	// Check if interruption came from tim2 on channel 1
-	if(htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){
-		if(pwm.initialised){
-			// Sensor reading
-			if(!pwm.cycleInitialised){
-				// If it's the beginning of the PWM cycle, get time it occurs and change next interrupt to falling edge (starts with rising
-				pwm.onRise = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-				__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
-				pwm.cycleInitialised = 1;
-			}else{
-				// If its on the end of the cycle, get time in which it occurred and save on variable
-				pwm.onFall = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-				// reset timer
-				__HAL_TIM_SET_COUNTER(htim, 0);
-				// Calculate time difference
-				if(pwm.onFall > pwm.onRise) pwm.diff = pwm.onFall - pwm.onRise;
-				// Set next interrupt to be on rising edge
-				__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-				pwm.cycleInitialised = 0;
-
-			}
-		}
-		else { // Initialise sensor
-			// After a sensor is connected, discard first interrupt (since we did not know the state of the timer) and read a few
-			// more interrupt times, take a mean of that and assert frequency
-			if(pwm.count == 0){
-				// Reset counter
-				__HAL_TIM_SET_COUNTER(htim, 0);
-				pwm.period = 0;
-			}
-			else if(pwm.count <= 100){
-				pwm.period += (float) HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1)/1000000; // each clock count is equivalent to 1 us
-			}
-			else {
-				// mean of periods
-				pwm.period /= (float)pwm.count;
-				pwm.frequency = 1.0 / pwm.period;
-				pwm.initialised++;
-				__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-			}
-			pwm.count++;
-		}
-	}
+	// Check if interrupt came from one of the sensors, then handle it
+	for(int i = 0; i < 3; i++)
+		if(htim->Instance == position_sensors[i].instance && htim->Channel == position_sensors[i].channel)
+			AS5048_pwm_timer_interrupt(&position_sensors[i]);
 }
 
 /* USER CODE END 0 */
@@ -155,6 +107,7 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
+
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -168,7 +121,11 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+
   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
+  // Initialise sensor with timer
+  AS5048_initialise_struct(&position_sensors[0], &htim2, TIM2, HAL_TIM_ACTIVE_CHANNEL_1, TIM_CHANNEL_1);
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -286,7 +243,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 108;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 2000;
+  htim2.Init.Period = 1000;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_IC_Init(&htim2) != HAL_OK)
